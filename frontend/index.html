@@ -46,7 +46,7 @@
                 <button @click="currentView = 'library'" :class="['flex items-center w-full px-3 md:px-4 py-3 rounded-xl font-bold transition-all', currentView==='library' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400']">
                     <i class="fa-solid fa-book w-6 text-center text-lg"></i><span class="hidden md:block ml-3">Biblioteca</span>
                 </button>
-                <button @click="currentView = 'settings'" :class="['flex items-center w-full px-3 md:px-4 py-3 rounded-xl font-bold transition-all', currentView==='settings' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400']">
+                <button @click="showSettings = true" :class="['flex items-center w-full px-3 md:px-4 py-3 rounded-xl font-bold transition-all', showSettings ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400']">
                     <i class="fa-solid fa-gear w-6 text-center text-lg"></i><span class="hidden md:block ml-3">Ajustes</span>
                 </button>
             </nav>

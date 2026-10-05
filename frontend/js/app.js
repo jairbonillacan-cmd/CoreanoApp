@@ -43,12 +43,18 @@ createApp({
             }
         };
 
-        // Library
+
+        const filterType = ref('all');
         const filteredLibrary = computed(() => {
-            if (!searchQuery.value) return db.value;
+            let res = db.value;
+            if(filterType.value !== 'all') {
+                res = res.filter(i => (i.type || 'vocab') === filterType.value);
+            }
+            if (!searchQuery.value) return res;
             const q = searchQuery.value.toLowerCase();
-            return db.value.filter(i => i.es.toLowerCase().includes(q) || i.k.includes(q) || i.r.toLowerCase().includes(q));
+            return res.filter(i => i.es.toLowerCase().includes(q) || i.k.includes(q) || i.r.toLowerCase().includes(q));
         });
+
         
         // Modal & Draw
         const showModal = ref(false);
@@ -83,11 +89,31 @@ createApp({
         const stopDraw = () => { isDrawing = false; };
         const clearCanvas = () => { if(ctx && drawCanvas.value) { ctx.clearRect(0, 0, drawCanvas.value.width, drawCanvas.value.height); } };
         
+
+        const decomposeHangul = (str) => {
+            const cho = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+            const jung = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+            const jong = ['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+            let result = [];
+            for(let i=0; i<str.length; i++) {
+                const code = str.charCodeAt(i) - 44032;
+                if(code > -1 && code < 11172) {
+                    const c = Math.floor(code / 588);
+                    const j = Math.floor((code - (c * 588)) / 28);
+                    const jo = code % 28;
+                    result.push(cho[c]); result.push(jung[j]);
+                    if(jo > 0) result.push(jong[jo]);
+                } else if(str[i].match(/[ㄱ-ㅎㅏ-ㅣ]/)) {
+                    result.push(str[i]);
+                }
+            }
+            return result;
+        };
         const showStrokeGuide = () => {
             clearCanvas();
-            if (!ctx || !activeItem.value || !activeItem.value.breakdown) return;
-            const jamos = activeItem.value.breakdown.match(/[ㄱ-ㅎㅏ-ㅣ]/g);
-            if (!jamos) return;
+            if (!ctx || !activeItem.value) return;
+            const jamos = decomposeHangul(activeItem.value.k);
+            if (!jamos || jamos.length === 0) return;
             
             const canvas = drawCanvas.value;
             const rect = canvas.getBoundingClientRect();
@@ -119,12 +145,30 @@ createApp({
             updateBrush();
         };
 
+
+        const availableVoices = ref([]);
+        const selectedVoiceURI = ref(localStorage.getItem('selectedVoiceURI') || '');
+        const loadVoices = () => {
+            let voices = window.speechSynthesis.getVoices();
+            availableVoices.value = voices.filter(v => v.lang.startsWith('ko'));
+            if(availableVoices.value.length > 0 && !selectedVoiceURI.value) {
+                selectedVoiceURI.value = availableVoices.value[0].voiceURI;
+            }
+        };
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+            loadVoices();
+        }
         // Speech
         const speak = (text) => {
             if (!('speechSynthesis' in window)) return;
             const ut = new SpeechSynthesisUtterance(text);
             ut.lang = 'ko-KR';
             ut.rate = voiceSpeed.value;
+            if(selectedVoiceURI.value) {
+                const voice = availableVoices.value.find(v => v.voiceURI === selectedVoiceURI.value);
+                if(voice) ut.voice = voice;
+            }
             window.speechSynthesis.speak(ut);
         };
 
@@ -169,7 +213,7 @@ createApp({
         const examAnswered = ref(false);
         const examFeedback = ref('');
         const examScore = ref(0);
-        const examInputClass = ref('border-slate-200 dark:border-slate-700 focus:border-primary');
+        const examInputClass = ref('bg-white dark:bg-slate-900 text-slate-800 dark:text-white border-slate-200 dark:border-slate-700 focus:border-primary');
         const examFeedbackColor = ref('');
         const examInputRef = ref(null);
 
@@ -177,7 +221,7 @@ createApp({
             examInput.value = '';
             examAnswered.value = false;
             examFeedback.value = '';
-            examInputClass.value = 'border-slate-200 dark:border-slate-700 focus:border-primary';
+            examInputClass.value = 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white border-slate-200 dark:border-slate-700 focus:border-primary';
             if(studyMode.value === 'exam') nextTick(() => { if(examInputRef.value) examInputRef.value.focus(); });
         };
 
@@ -219,8 +263,13 @@ createApp({
         // Theme
         const toggleTheme = () => {
             isDarkMode.value = !isDarkMode.value;
-            if(isDarkMode.value) localStorage.setItem('theme', 'dark');
-            else localStorage.setItem('theme', 'light');
+            if(isDarkMode.value) {
+                localStorage.setItem('theme', 'dark');
+                document.documentElement.classList.add('dark');
+            } else {
+                localStorage.setItem('theme', 'light');
+                document.documentElement.classList.remove('dark');
+            }
         };
         
         onMounted(() => {
@@ -230,7 +279,7 @@ createApp({
 
         return {
             isAppLoading,
-            currentView, searchQuery, isDarkMode, toggleTheme, voiceSpeed, globalProgress,
+            currentView, searchQuery, filterType, isDarkMode, toggleTheme, voiceSpeed, globalProgress, availableVoices, selectedVoiceURI,
             units, filteredLibrary, openUnit, getItemsForUnit,
             showModal, activeItem, openModal, drawCanvas, brushSize, startDraw, draw, stopDraw, clearCanvas, showStrokeGuide, updateBrush, speak,
             activeUnit, studyMode, startMode, studyList, studyIndex, currentStudyItem,

@@ -82,10 +82,19 @@
                         <div class="text-left mb-8">
                             <h1 class="text-4xl font-black mb-2 text-slate-900 dark:text-white">Biblioteca</h1>
                         </div>
-                        <div class="bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-sm mb-8 flex border border-slate-200 dark:border-slate-700 sticky top-4 z-10">
-                            <i class="fa-solid fa-search absolute left-6 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                            <input v-model="searchQuery" type="text" placeholder="Buscar en español o coreano..." class="w-full pl-12 pr-4 py-3 bg-transparent outline-none font-medium text-slate-800 dark:text-white">
+                        
+                        <div class="bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-sm mb-8 flex border border-slate-200 dark:border-slate-700 sticky top-4 z-10 gap-2">
+                            <div class="relative flex-grow">
+                                <i class="fa-solid fa-search absolute left-6 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                <input v-model="searchQuery" type="text" placeholder="Buscar en español o coreano..." class="w-full pl-12 pr-4 py-3 bg-transparent outline-none font-medium text-slate-800 dark:text-white">
+                            </div>
+                            <select v-model="filterType" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-white rounded-xl px-4 py-2 font-bold outline-none border-none">
+                                <option value="all">Todo</option>
+                                <option value="vocab">Vocabulario</option>
+                                <option value="phrase">Frases</option>
+                            </select>
                         </div>
+
                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             <div v-for="item in filteredLibrary" :key="item.id" @click="openModal(item)" class="bg-white dark:bg-slate-800 rounded-2xl p-6 text-center shadow-sm hover:shadow-xl border border-slate-100 dark:border-slate-700 cursor-pointer transition-all hover:-translate-y-1 group">
                                 <div class="kr-text text-4xl font-black mb-3 text-slate-800 dark:text-white group-hover:text-primary transition-colors">{{item.k}}</div>

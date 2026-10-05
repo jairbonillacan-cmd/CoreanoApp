@@ -70,6 +70,72 @@ createApp({
             nextTick(() => setupCanvas());
         };
         
+
+        const evaluateScore = ref(null);
+
+        const drawJamos = (jamos, drawNumbers = false, isFaint = true) => {
+            if (!ctx || !drawCanvas.value || !jamos || jamos.length === 0) return;
+            const canvas = drawCanvas.value;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            
+            const padding = 20;
+            const availableHeight = rect.height - padding * 2;
+            const availableWidth = rect.width - padding * 2;
+            
+            let size = availableHeight;
+            let totalWidth = jamos.length * size;
+            if (totalWidth > availableWidth) {
+                size = availableWidth / jamos.length;
+                totalWidth = availableWidth;
+            }
+            
+            const startX = (rect.width - totalWidth) / 2;
+            const offsetY = (rect.height - size) / 2;
+            const scale = size / 100;
+            
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            jamos.forEach((jamo, index) => {
+                const guide = jamoStrokes.value[jamo];
+                if (!guide) return;
+                
+                const offsetX = startX + (index * size);
+                
+                ctx.lineWidth = isFaint ? 10 * scale : 4 * scale;
+                if (isFaint) {
+                    ctx.strokeStyle = isDarkMode.value ? 'rgba(71, 85, 105, 0.3)' : 'rgba(203, 213, 225, 0.4)';
+                } else {
+                    ctx.strokeStyle = isDarkMode.value ? '#64748b' : '#cbd5e1';
+                }
+
+                guide.paths.forEach(pathStr => {
+                    const p = new Path2D(pathStr);
+                    ctx.save();
+                    ctx.translate(offsetX, offsetY);
+                    ctx.scale(scale, scale);
+                    ctx.stroke(p);
+                    ctx.restore();
+                });
+                
+                if (drawNumbers) {
+                    guide.points.forEach(pt => {
+                        ctx.fillStyle = '#ec4899';
+                        ctx.beginPath();
+                        ctx.arc(offsetX + (pt.x * scale), offsetY + (pt.y * scale), 12 * scale, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.fillStyle = 'white';
+                        ctx.font = `bold ${14 * scale}px sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(pt.n, offsetX + (pt.x * scale), offsetY + (pt.y * scale) + 1);
+                    });
+                }
+            });
+            updateBrush();
+        };
+
         const setupCanvas = () => {
             const canvas = drawCanvas.value;
             if(!canvas) return;
@@ -79,7 +145,113 @@ createApp({
             canvas.height = rect.height * dpr;
             ctx = canvas.getContext('2d');
             ctx.scale(dpr, dpr);
-            updateBrush();
+            clearCanvas();
+        };
+        
+        const updateBrush = () => { if(!ctx) return; ctx.lineWidth = brushSize.value; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = isDarkMode.value ? '#818cf8' : '#4f46e5'; };
+        const getCanvasCoords = (e) => { const rect = drawCanvas.value.getBoundingClientRect(); const x = e.clientX || (e.touches && e.touches[0].clientX); const y = e.clientY || (e.touches && e.touches[0].clientY); return { x: x - rect.left, y: y - rect.top }; };
+        const startDraw = (e) => { isDrawing = true; const p = getCanvasCoords(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+        const draw = (e) => { if(!isDrawing) return; const p = getCanvasCoords(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+        const stopDraw = () => { isDrawing = false; };
+        
+        const clearCanvas = () => {
+            if(ctx && drawCanvas.value) {
+                ctx.clearRect(0, 0, drawCanvas.value.width, drawCanvas.value.height);
+                evaluateScore.value = null;
+                if (activeItem.value) {
+                    const jamos = decomposeHangul(activeItem.value.k);
+                    drawJamos(jamos, false, true);
+                }
+            }
+        };
+        
+        const showStrokeGuide = () => {
+            clearCanvas();
+            if (activeItem.value) {
+                const jamos = decomposeHangul(activeItem.value.k);
+                drawJamos(jamos, true, false);
+            }
+        };
+
+        const evaluateStroke = () => {
+            if (!ctx || !drawCanvas.value || !activeItem.value) return;
+            const canvas = drawCanvas.value;
+            const jamos = decomposeHangul(activeItem.value.k);
+            if (!jamos || jamos.length === 0) return;
+            
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = canvas.width;
+            offCanvas.height = canvas.height;
+            const octx = offCanvas.getContext('2d', { willReadFrequently: true });
+            
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            octx.scale(dpr, dpr);
+            
+            const padding = 20;
+            let size = rect.height - padding * 2;
+            let totalWidth = jamos.length * size;
+            if (totalWidth > rect.width - padding * 2) {
+                size = (rect.width - padding * 2) / jamos.length;
+                totalWidth = rect.width - padding * 2;
+            }
+            
+            const startX = (rect.width - totalWidth) / 2;
+            const offsetY = (rect.height - size) / 2;
+            const scale = size / 100;
+            
+            octx.lineCap = 'round';
+            octx.lineJoin = 'round';
+            
+            jamos.forEach((jamo, index) => {
+                const guide = jamoStrokes.value[jamo];
+                if (!guide) return;
+                const offsetX = startX + (index * size);
+                
+                octx.lineWidth = 30 * scale; 
+                octx.strokeStyle = '#000000';
+                
+                guide.paths.forEach(pathStr => {
+                    const p = new Path2D(pathStr);
+                    octx.save();
+                    octx.translate(offsetX, offsetY);
+                    octx.scale(scale, scale);
+                    octx.stroke(p);
+                    octx.restore();
+                });
+            });
+            
+            const expectedData = octx.getImageData(0, 0, offCanvas.width, offCanvas.height).data;
+            const userData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            
+            let expectedCount = 0; let coveredCount = 0;
+            let userCount = 0; let outOfBoundsCount = 0;
+            
+            for (let i = 3; i < expectedData.length; i += 4) {
+                const expectedAlpha = expectedData[i];
+                const userAlpha = userData[i];
+                const isExpected = expectedAlpha > 50;
+                const isUser = userAlpha > 150;
+                
+                if (isExpected) expectedCount++;
+                if (isUser) userCount++;
+                if (isExpected && isUser) coveredCount++;
+                if (!isExpected && isUser) outOfBoundsCount++;
+            }
+            
+            if (expectedCount === 0 || userCount === 0) {
+                evaluateScore.value = 0;
+                return;
+            }
+            
+            let coverage = coveredCount / expectedCount; 
+            let penalty = outOfBoundsCount / expectedCount; 
+            
+            let score = (coverage * 100) - (penalty * 50); 
+            score = Math.max(0, Math.min(100, Math.round(score)));
+            evaluateScore.value = score;
+            
+            if (score >= 80) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         };
         
         const updateBrush = () => { if(!ctx) return; ctx.lineWidth = brushSize.value; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = isDarkMode.value ? '#818cf8' : '#4f46e5'; };
@@ -281,7 +453,7 @@ createApp({
             isAppLoading,
             currentView, searchQuery, filterType, isDarkMode, toggleTheme, voiceSpeed, globalProgress, availableVoices, selectedVoiceURI,
             units, filteredLibrary, openUnit, getItemsForUnit,
-            showModal, activeItem, openModal, drawCanvas, brushSize, startDraw, draw, stopDraw, clearCanvas, showStrokeGuide, updateBrush, speak,
+            showModal, activeItem, openModal, drawCanvas, brushSize, startDraw, draw, stopDraw, clearCanvas, showStrokeGuide, updateBrush, speak, evaluateStroke, evaluateScore,
             activeUnit, studyMode, startMode, studyList, studyIndex, currentStudyItem,
             theorySlideIndex, currentLesson, nextTheorySlide, prevTheorySlide,
             fcFlipped, nextCard, prevCard,

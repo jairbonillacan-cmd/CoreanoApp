@@ -217,13 +217,16 @@
                         <h2 class="kr-text text-7xl font-black text-slate-800 dark:text-white mb-8">{{activeItem.k}}</h2>
                         <div class="w-full flex justify-between items-center mb-4">
                             <span class="font-bold text-slate-600 dark:text-slate-400 uppercase text-xs tracking-widest"><i class="fa-solid fa-pen-nib mr-2"></i>Práctica</span>
+                            
                             <div class="flex gap-2">
                                 <button @click="showStrokeGuide" class="text-white font-bold text-xs bg-secondary px-3 py-2 rounded-lg shadow hover:bg-secondary/80 transition-colors">Guía Trazos</button>
+                                <button @click="evaluateStroke" class="text-white font-bold text-xs bg-emerald-500 px-3 py-2 rounded-lg shadow hover:bg-emerald-600 transition-colors"><i class="fa-solid fa-check mr-1"></i>Calificar</button>
                                 <button @click="clearCanvas" class="text-slate-600 dark:text-slate-300 font-bold text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-3 py-2 rounded-lg">Borrar</button>
                             </div>
+
                         </div>
                         <div class="canvas-wrapper mb-6 border-4 border-slate-200 dark:border-slate-700 shadow-inner">
-                            <div class="canvas-guide kr-text" :style="{fontSize: activeItem.k.length > 2 ? '60px' : '100px'}">{{activeItem.k}}</div>
+                            
                             <canvas ref="drawCanvas" @mousedown="startDraw" @mousemove="draw" @mouseup="stopDraw" @mouseout="stopDraw" @touchstart.prevent="startDraw" @touchmove.prevent="draw" @touchend.prevent="stopDraw"></canvas>
                         </div>
                         <div class="w-full bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">

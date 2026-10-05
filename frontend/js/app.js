@@ -1,0 +1,242 @@
+const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
+const API_BASE = 'http://localhost:3000/api';
+
+createApp({
+    setup() {
+        // State
+        const isAppLoading = ref(true);
+        const currentView = ref('path');
+        const searchQuery = ref('');
+        const isDarkMode = ref(localStorage.getItem('theme') === 'dark');
+        const voiceSpeed = ref(1.0);
+        const globalProgress = ref(0);
+        
+        // Data from Backend
+        const db = ref([]);
+        const units = ref([]);
+        const lessonsData = ref([]);
+        const jamoStrokes = ref({});
+
+        // Fetch Data
+        const loadData = async () => {
+            try {
+                const [vocabRes, curRes, lessonsRes, jamoRes] = await Promise.all([
+                    fetch(`${API_BASE}/vocabulary`),
+                    fetch(`${API_BASE}/curriculum`),
+                    fetch(`${API_BASE}/lessons`),
+                    fetch(`${API_BASE}/jamo-strokes`)
+                ]);
+                
+                db.value = await vocabRes.json();
+                units.value = await curRes.json();
+                lessonsData.value = await lessonsRes.json();
+                jamoStrokes.value = await jamoRes.json();
+                
+                isAppLoading.value = false;
+                
+                // Calculate progress mock
+                globalProgress.value = 45; 
+            } catch (error) {
+                console.error("Error loading data from backend:", error);
+                alert("Error conectando con el servidor. Asegúrate de que el backend esté corriendo en el puerto 3000.");
+            }
+        };
+
+        // Library
+        const filteredLibrary = computed(() => {
+            if (!searchQuery.value) return db.value;
+            const q = searchQuery.value.toLowerCase();
+            return db.value.filter(i => i.es.toLowerCase().includes(q) || i.k.includes(q) || i.r.toLowerCase().includes(q));
+        });
+        
+        // Modal & Draw
+        const showModal = ref(false);
+        const activeItem = ref({});
+        const drawCanvas = ref(null);
+        const brushSize = ref(8);
+        let ctx = null;
+        let isDrawing = false;
+        
+        const openModal = (item) => {
+            activeItem.value = item;
+            showModal.value = true;
+            nextTick(() => setupCanvas());
+        };
+        
+        const setupCanvas = () => {
+            const canvas = drawCanvas.value;
+            if(!canvas) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            updateBrush();
+        };
+        
+        const updateBrush = () => { if(!ctx) return; ctx.lineWidth = brushSize.value; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = isDarkMode.value ? '#818cf8' : '#4f46e5'; };
+        const getCanvasCoords = (e) => { const rect = drawCanvas.value.getBoundingClientRect(); const x = e.clientX || (e.touches && e.touches[0].clientX); const y = e.clientY || (e.touches && e.touches[0].clientY); return { x: x - rect.left, y: y - rect.top }; };
+        const startDraw = (e) => { isDrawing = true; const p = getCanvasCoords(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+        const draw = (e) => { if(!isDrawing) return; const p = getCanvasCoords(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+        const stopDraw = () => { isDrawing = false; };
+        const clearCanvas = () => { if(ctx && drawCanvas.value) { ctx.clearRect(0, 0, drawCanvas.value.width, drawCanvas.value.height); } };
+        
+        const showStrokeGuide = () => {
+            clearCanvas();
+            if (!ctx || !activeItem.value || !activeItem.value.breakdown) return;
+            const jamos = activeItem.value.breakdown.match(/[ㄱ-ㅎㅏ-ㅣ]/g);
+            if (!jamos) return;
+            
+            const canvas = drawCanvas.value;
+            const rect = canvas.getBoundingClientRect();
+            const size = Math.min(100, rect.width / jamos.length);
+            const totalWidth = jamos.length * size;
+            let startX = (rect.width - totalWidth) / 2;
+            
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            jamos.forEach((jamo, index) => {
+                const guide = jamoStrokes.value[jamo];
+                if (!guide) return;
+                const offsetX = startX + (index * size);
+                const offsetY = (rect.height - size) / 2;
+                const scale = size / 100;
+                
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = isDarkMode.value ? '#334155' : '#cbd5e1';
+                guide.paths.forEach(pathStr => {
+                    const p = new Path2D(pathStr);
+                    ctx.save(); ctx.translate(offsetX, offsetY); ctx.scale(scale, scale); ctx.stroke(p); ctx.restore();
+                });
+                guide.points.forEach(pt => {
+                    ctx.fillStyle = '#ec4899';
+                    ctx.beginPath(); ctx.arc(offsetX + (pt.x * scale), offsetY + (pt.y * scale), 12 * scale, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = 'white'; ctx.font = `bold ${14 * scale}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(pt.n, offsetX + (pt.x * scale), offsetY + (pt.y * scale) + 1);
+                });
+            });
+            updateBrush();
+        };
+
+        // Speech
+        const speak = (text) => {
+            if (!('speechSynthesis' in window)) return;
+            const ut = new SpeechSynthesisUtterance(text);
+            ut.lang = 'ko-KR';
+            ut.rate = voiceSpeed.value;
+            window.speechSynthesis.speak(ut);
+        };
+
+        // Study Logic
+        const activeUnit = ref({});
+        const studyMode = ref('theory');
+        const studyList = ref([]);
+        const studyIndex = ref(0);
+        const currentStudyItem = computed(() => studyList.value[studyIndex.value] || {});
+        
+        // Theory mode state
+        const theorySlideIndex = ref(0);
+        const currentLesson = computed(() => lessonsData.value.find(l => l.id == activeUnit.value.id));
+        const nextTheorySlide = () => { if(currentLesson.value && theorySlideIndex.value < currentLesson.value.slides.length - 1) theorySlideIndex.value++; };
+        const prevTheorySlide = () => { if(theorySlideIndex.value > 0) theorySlideIndex.value--; };
+
+        const getItemsForUnit = (id) => db.value.filter(i => i.l === id);
+        const openUnit = (unit) => {
+            activeUnit.value = unit;
+            currentView.value = 'study';
+            startMode('theory');
+        };
+        
+        const startMode = (mode) => {
+            studyMode.value = mode;
+            studyList.value = getItemsForUnit(activeUnit.value.id);
+            if(mode === 'exam') studyList.value.sort(() => Math.random() - 0.5);
+            studyIndex.value = 0;
+            theorySlideIndex.value = 0;
+            fcFlipped.value = false;
+            examScore.value = 0;
+            resetExamState();
+        };
+
+        // Flashcard animations
+        const fcFlipped = ref(false);
+        const nextCard = () => { if(studyIndex.value < studyList.value.length - 1) { studyIndex.value++; fcFlipped.value = false; } };
+        const prevCard = () => { if(studyIndex.value > 0) { studyIndex.value--; fcFlipped.value = false; } };
+
+        // Exam
+        const examInput = ref('');
+        const examAnswered = ref(false);
+        const examFeedback = ref('');
+        const examScore = ref(0);
+        const examInputClass = ref('border-slate-200 dark:border-slate-700 focus:border-primary');
+        const examFeedbackColor = ref('');
+        const examInputRef = ref(null);
+
+        const resetExamState = () => {
+            examInput.value = '';
+            examAnswered.value = false;
+            examFeedback.value = '';
+            examInputClass.value = 'border-slate-200 dark:border-slate-700 focus:border-primary';
+            if(studyMode.value === 'exam') nextTick(() => { if(examInputRef.value) examInputRef.value.focus(); });
+        };
+
+        const submitExam = () => {
+            if(examAnswered.value) { nextExam(); return; }
+            const val = examInput.value.trim().toLowerCase();
+            if(!val) return;
+            
+            const k = currentStudyItem.value;
+            const isCorrect = val === k.r.toLowerCase() || k.es.toLowerCase().includes(val) || val === k.k;
+            
+            examAnswered.value = true;
+            if(isCorrect) {
+                examScore.value++;
+                examInputClass.value = 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+                examFeedback.value = '¡Correcto!';
+                examFeedbackColor.value = 'text-emerald-500';
+            } else {
+                examInput.value = k.es;
+                examInputClass.value = 'border-rose-500 bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400';
+                examFeedback.value = 'Incorrecto.';
+                examFeedbackColor.value = 'text-rose-500';
+            }
+        };
+
+        const nextExam = () => {
+            if(studyIndex.value < studyList.value.length - 1) {
+                studyIndex.value++;
+                resetExamState();
+            } else {
+                confetti({ particleCount: 300, spread: 160, origin: { y: 0.6 }, colors: ['#6366f1', '#ec4899', '#ffffff'] });
+                setTimeout(() => {
+                    alert(`¡Examen finalizado! Puntuación: ${examScore.value}/${studyList.value.length}`);
+                    currentView.value = 'path';
+                }, 1500);
+            }
+        };
+
+        // Theme
+        const toggleTheme = () => {
+            isDarkMode.value = !isDarkMode.value;
+            if(isDarkMode.value) localStorage.setItem('theme', 'dark');
+            else localStorage.setItem('theme', 'light');
+        };
+        
+        onMounted(() => {
+            if (isDarkMode.value) document.documentElement.classList.add('dark');
+            loadData();
+        });
+
+        return {
+            isAppLoading,
+            currentView, searchQuery, isDarkMode, toggleTheme, voiceSpeed, globalProgress,
+            units, filteredLibrary, openUnit, getItemsForUnit,
+            showModal, activeItem, openModal, drawCanvas, brushSize, startDraw, draw, stopDraw, clearCanvas, showStrokeGuide, updateBrush, speak,
+            activeUnit, studyMode, startMode, studyList, studyIndex, currentStudyItem,
+            theorySlideIndex, currentLesson, nextTheorySlide, prevTheorySlide,
+            fcFlipped, nextCard, prevCard,
+            examInput, examAnswered, examFeedback, examScore, examInputClass, examFeedbackColor, submitExam, nextExam, examInputRef
+        };
+    }
+}).mount('#app');

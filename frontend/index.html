@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coreano Master Pro V2</title>
+    
+    <!-- Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Config & Styles -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { primary: '#6366f1', secondary: '#ec4899', dark: '#0f172a', surface: '#ffffff' },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], kr: ['Pretendard', 'Malgun Gothic', 'sans-serif'] },
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body :class="isDarkMode ? 'dark' : ''">
+    <div id="app" class="h-screen flex overflow-hidden">
+        <div v-if="isAppLoading" class="w-full h-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 z-50 absolute inset-0">
+            <div class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary mb-4"></div>
+            <h2 class="text-2xl font-bold text-slate-700 dark:text-white">Conectando al servidor...</h2>
+        </div>
+        
+        <!-- SIDEBAR -->
+        <aside class="w-20 md:w-64 glass-sidebar flex flex-col h-full z-40 flex-shrink-0 transition-all">
+            <div class="h-20 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-200 dark:border-slate-700/50">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary to-primary shadow-lg flex items-center justify-center text-white font-black text-xl flex-shrink-0">K</div>
+                <span class="hidden md:block font-extrabold text-xl ml-3 text-slate-800 dark:text-white tracking-tight">Coreano<span class="text-primary">Pro</span></span>
+            </div>
+            
+            <nav class="flex-grow py-6 flex flex-col gap-2 px-3">
+                <button @click="currentView = 'path'" :class="['flex items-center w-full px-3 md:px-4 py-3 rounded-xl font-bold transition-all', currentView==='path' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400']">
+                    <i class="fa-solid fa-map-location-dot w-6 text-center text-lg"></i><span class="hidden md:block ml-3">Ruta</span>
+                </button>
+                <button @click="currentView = 'library'" :class="['flex items-center w-full px-3 md:px-4 py-3 rounded-xl font-bold transition-all', currentView==='library' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400']">
+                    <i class="fa-solid fa-book w-6 text-center text-lg"></i><span class="hidden md:block ml-3">Biblioteca</span>
+                </button>
+                <button @click="currentView = 'settings'" :class="['flex items-center w-full px-3 md:px-4 py-3 rounded-xl font-bold transition-all', currentView==='settings' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400']">
+                    <i class="fa-solid fa-gear w-6 text-center text-lg"></i><span class="hidden md:block ml-3">Ajustes</span>
+                </button>
+            </nav>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-grow h-full overflow-y-auto overflow-x-hidden relative">
+            <div class="max-w-6xl mx-auto w-full p-4 sm:p-8 pb-24">
+                
+                <transition name="fade" mode="out-in">
+                    <div v-if="currentView === 'path'" key="path">
+                        <div class="text-left mb-10">
+                            <h1 class="text-4xl font-black mb-2 text-slate-900 dark:text-white">Unidades de Estudio</h1>
+                            <p class="text-slate-500 dark:text-slate-400 font-medium text-lg">Tu viaje hacia la fluidez paso a paso.</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div v-for="(unit, index) in units" :key="unit.id" class="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-xl transition-all group flex flex-col h-full cursor-pointer" @click="openUnit(unit)">
+                                <div class="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
+                                    <i :class="[unit.icon, 'text-2xl text-slate-600 dark:text-slate-300 group-hover:text-white']"></i>
+                                </div>
+                                <h3 class="text-xs font-black text-primary dark:text-indigo-400 uppercase tracking-widest mb-1">Unidad {{unit.id}}</h3>
+                                <h2 class="text-xl font-extrabold text-slate-800 dark:text-white mb-2 leading-tight">{{unit.title}}</h2>
+                                <p class="text-slate-500 dark:text-slate-400 text-sm flex-grow mb-6">{{unit.desc}}</p>
+                                <div class="flex items-center justify-between text-sm font-bold text-slate-400">
+                                    <span>{{getItemsForUnit(unit.id).length}} palabras</span>
+                                    <i class="fa-solid fa-arrow-right group-hover:translate-x-2 transition-transform text-primary"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div v-else-if="currentView === 'library'" key="library">
+                        <div class="text-left mb-8">
+                            <h1 class="text-4xl font-black mb-2 text-slate-900 dark:text-white">Biblioteca</h1>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-sm mb-8 flex border border-slate-200 dark:border-slate-700 sticky top-4 z-10">
+                            <i class="fa-solid fa-search absolute left-6 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                            <input v-model="searchQuery" type="text" placeholder="Buscar en español o coreano..." class="w-full pl-12 pr-4 py-3 bg-transparent outline-none font-medium text-slate-800 dark:text-white">
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            <div v-for="item in filteredLibrary" :key="item.id" @click="openModal(item)" class="bg-white dark:bg-slate-800 rounded-2xl p-6 text-center shadow-sm hover:shadow-xl border border-slate-100 dark:border-slate-700 cursor-pointer transition-all hover:-translate-y-1 group">
+                                <div class="kr-text text-4xl font-black mb-3 text-slate-800 dark:text-white group-hover:text-primary transition-colors">{{item.k}}</div>
+                                <div class="text-sm font-bold text-slate-600 dark:text-slate-300 truncate">{{item.es}}</div>
+                                <div class="text-xs text-slate-400 font-medium mt-1 uppercase">{{item.r}}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div v-else-if="currentView === 'settings'" key="settings" class="max-w-2xl mx-auto">
+                        <div class="text-left mb-10"><h1 class="text-4xl font-black mb-2 text-slate-900 dark:text-white">Ajustes</h1></div>
+                        <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700">
+                            <div class="p-6 flex items-center justify-between">
+                                <div><h3 class="text-lg font-bold text-slate-800 dark:text-white">Modo Oscuro</h3></div>
+                                <button @click="toggleTheme" :class="['w-14 h-8 rounded-full transition-colors relative', isDarkMode ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-600']">
+                                    <div :class="['w-6 h-6 rounded-full bg-white shadow-md absolute top-1 transition-transform', isDarkMode ? 'left-7' : 'left-1']"></div>
+                                </button>
+                            </div>
+                            <div class="p-6">
+                                <div class="mb-4"><h3 class="text-lg font-bold text-slate-800 dark:text-white">Velocidad del Audio</h3></div>
+                                <div class="flex items-center gap-4">
+                                    <i class="fa-solid fa-turtle text-slate-400"></i>
+                                    <input type="range" min="0.5" max="1.5" step="0.1" v-model="voiceSpeed" class="flex-grow accent-primary">
+                                    <i class="fa-solid fa-rabbit text-slate-400"></i>
+                                    <span class="font-bold text-primary w-12 text-right">{{voiceSpeed}}x</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div v-else-if="currentView === 'study'" key="study" class="max-w-4xl mx-auto">
+                        <button @click="currentView = 'path'" class="mb-6 text-slate-500 dark:text-slate-400 hover:text-primary font-bold inline-flex items-center bg-white dark:bg-slate-800 px-4 py-2 rounded-full shadow-sm">
+                            <i class="fa-solid fa-arrow-left mr-2"></i> Volver a Unidades
+                        </button>
+                        <div class="text-center mb-8">
+                            <h3 class="text-sm font-black text-primary uppercase tracking-widest mb-1">Estudiando</h3>
+                            <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white mb-6">Unidad {{activeUnit.id}}: {{activeUnit.title}}</h2>
+                            <div class="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-2xl max-w-xl mx-auto">
+                                <button @click="startMode('theory')" :class="['flex-1 py-3 rounded-xl font-bold transition-all text-sm', studyMode==='theory'?'bg-white dark:bg-slate-700 text-primary shadow-sm':'text-slate-500 dark:text-slate-400']">1. Clase</button>
+                                <button @click="startMode('flashcards')" :class="['flex-1 py-3 rounded-xl font-bold transition-all text-sm', studyMode==='flashcards'?'bg-white dark:bg-slate-700 text-primary shadow-sm':'text-slate-500 dark:text-slate-400']">2. Práctica</button>
+                                <button @click="startMode('exam')" :class="['flex-1 py-3 rounded-xl font-bold transition-all text-sm', studyMode==='exam'?'bg-white dark:bg-slate-700 text-primary shadow-sm':'text-slate-500 dark:text-slate-400']">3. Examen</button>
+                            </div>
+                        </div>
+
+                        <transition name="slide-up" mode="out-in">
+                            <!-- CLASE / TEORIA -->
+                            <div v-if="studyMode === 'theory'" key="mode-theory" class="bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700">
+                                <div v-if="currentLesson" class="flex flex-col h-full">
+                                    <div class="h-2 bg-slate-100 dark:bg-slate-700 w-full relative">
+                                        <div class="h-full bg-primary transition-all duration-300" :style="{ width: ((theorySlideIndex + 1) / currentLesson.slides.length) * 100 + '%' }"></div>
+                                    </div>
+                                    <div class="p-8 sm:p-12 theory-content min-h-[400px]">
+                                        <transition name="fade" mode="out-in">
+                                            <div :key="theorySlideIndex">
+                                                <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white mb-6 pb-4 border-b border-slate-100 dark:border-slate-700">{{currentLesson.slides[theorySlideIndex].title}}</h2>
+                                                <div v-html="currentLesson.slides[theorySlideIndex].content" class="text-lg"></div>
+                                            </div>
+                                        </transition>
+                                    </div>
+                                    <div class="bg-slate-50 dark:bg-slate-900 p-6 flex justify-between items-center border-t border-slate-100 dark:border-slate-800">
+                                        <button @click="prevTheorySlide" :disabled="theorySlideIndex === 0" :class="['px-6 py-3 rounded-xl font-bold transition-all', theorySlideIndex === 0 ? 'opacity-50 cursor-not-allowed text-slate-400' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-white shadow hover:shadow-md']"><i class="fa-solid fa-arrow-left mr-2"></i> Anterior</button>
+                                        <div class="text-slate-400 font-bold text-sm">{{theorySlideIndex + 1}} / {{currentLesson.slides.length}}</div>
+                                        <button v-if="theorySlideIndex < currentLesson.slides.length - 1" @click="nextTheorySlide" class="px-6 py-3 rounded-xl font-bold bg-primary text-white shadow-md hover:bg-primary/90 transition-all">Siguiente <i class="fa-solid fa-arrow-right ml-2"></i></button>
+                                        <button v-else @click="startMode('flashcards')" class="px-6 py-3 rounded-xl font-bold bg-emerald-500 text-white shadow-md hover:bg-emerald-600 transition-all">¡Ir a Práctica! <i class="fa-solid fa-layer-group ml-2"></i></button>
+                                    </div>
+                                </div>
+                                <div v-else class="text-center p-20 text-slate-400 font-bold">La clase no está lista.</div>
+                            </div>
+
+                            <!-- FLASHCARDS -->
+                            <div v-else-if="studyMode === 'flashcards'" key="mode-flashcards" class="flex flex-col items-center overflow-visible">
+                                <div class="relative w-full max-w-sm h-96 mb-10 perspective-1000">
+                                    <transition name="card-change" mode="out-in">
+                                        <div :key="studyIndex" class="absolute inset-0 w-full h-full cursor-pointer" @click="fcFlipped = !fcFlipped">
+                                            <div :class="['w-full h-full relative transition-transform duration-500 preserve-3d', fcFlipped ? 'rotate-y-180' : '']">
+                                                <div class="absolute inset-0 backface-hidden bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center p-8 text-center">
+                                                    <div class="kr-text text-8xl font-black text-slate-800 dark:text-white">{{currentStudyItem.k}}</div>
+                                                    <p class="text-slate-400 font-bold mt-10 text-xs uppercase tracking-widest bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-full">Toca para voltear</p>
+                                                </div>
+                                                <div class="absolute inset-0 backface-hidden bg-slate-50 dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center p-8 text-center rotate-y-180">
+                                                    <h3 class="text-4xl font-extrabold text-primary dark:text-indigo-400 mb-6">{{currentStudyItem.es}}</h3>
+                                                    <div class="bg-white dark:bg-slate-800 px-6 py-3 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 font-bold text-xl text-slate-600 dark:text-slate-300 mb-8">{{currentStudyItem.r}}</div>
+                                                    <button @click.stop="speak(currentStudyItem.k)" class="w-16 h-16 rounded-full bg-primary text-white text-2xl shadow-lg hover:scale-110 transition-transform"><i class="fa-solid fa-volume-high"></i></button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </transition>
+                                </div>
+                                <div class="flex gap-4 w-full max-w-sm relative z-10">
+                                    <button @click="prevCard" class="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-white font-bold py-4 rounded-2xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700"><i class="fa-solid fa-arrow-left"></i></button>
+                                    <button @click="nextCard" class="flex-[3] bg-primary text-white font-bold py-4 rounded-2xl shadow-md hover:bg-primary/90 tracking-wide">Siguiente <i class="fa-solid fa-arrow-right ml-2"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- EXAMEN -->
+                            <div v-else-if="studyMode === 'exam'" key="mode-exam" class="bg-white dark:bg-slate-800 rounded-3xl p-8 sm:p-12 shadow-xl max-w-lg mx-auto text-center border border-slate-100 dark:border-slate-700">
+                                <div class="flex justify-between items-center font-bold text-slate-400 mb-10 uppercase text-sm tracking-wider">
+                                    <span class="bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-lg"># {{studyIndex + 1}}/{{studyList.length}}</span>
+                                    <span class="text-primary bg-primary/10 px-3 py-1 rounded-lg"><i class="fa-solid fa-star mr-1"></i> {{examScore}}</span>
+                                </div>
+                                <div class="kr-text text-8xl font-black text-slate-800 dark:text-white mb-8">{{currentStudyItem.k}}</div>
+                                <input ref="examInputRef" v-model="examInput" @keydown.enter="submitExam" type="text" :disabled="examAnswered" placeholder="Escribe tu respuesta..." :class="['w-full p-5 text-center text-2xl font-bold rounded-2xl border-4 transition-all outline-none', examInputClass]">
+                                <transition name="fade">
+                                    <div v-if="examAnswered" class="h-10 mt-6 font-black text-2xl" :class="examFeedbackColor">{{examFeedback}}</div>
+                                    <div v-else class="h-10 mt-6 text-slate-300 dark:text-slate-600 text-sm font-medium pt-2">Presiona Enter para enviar</div>
+                                </transition>
+                                <button v-if="examAnswered" @click="nextExam" class="mt-8 w-full bg-primary text-white font-bold py-5 rounded-2xl shadow-lg hover:bg-primary/90 text-xl">Continuar <i class="fa-solid fa-arrow-right ml-2"></i></button>
+                            </div>
+                        </transition>
+                    </div>
+                </transition>
+            </div>
+        </main>
+
+        <!-- MODAL DIBUJO -->
+        <transition name="fade">
+            <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm" @click.self="showModal = false">
+                <div class="bg-white dark:bg-slate-800 w-full max-w-5xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row transform transition-all border border-slate-200 dark:border-slate-700">
+                    <div class="bg-slate-50 dark:bg-slate-900 w-full md:w-1/2 p-8 border-r border-slate-200 dark:border-slate-700 flex flex-col items-center">
+                        <h2 class="kr-text text-7xl font-black text-slate-800 dark:text-white mb-8">{{activeItem.k}}</h2>
+                        <div class="w-full flex justify-between items-center mb-4">
+                            <span class="font-bold text-slate-600 dark:text-slate-400 uppercase text-xs tracking-widest"><i class="fa-solid fa-pen-nib mr-2"></i>Práctica</span>
+                            <div class="flex gap-2">
+                                <button @click="showStrokeGuide" class="text-white font-bold text-xs bg-secondary px-3 py-2 rounded-lg shadow hover:bg-secondary/80 transition-colors">Guía Trazos</button>
+                                <button @click="clearCanvas" class="text-slate-600 dark:text-slate-300 font-bold text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-3 py-2 rounded-lg">Borrar</button>
+                            </div>
+                        </div>
+                        <div class="canvas-wrapper mb-6 border-4 border-slate-200 dark:border-slate-700 shadow-inner">
+                            <div class="canvas-guide kr-text" :style="{fontSize: activeItem.k.length > 2 ? '60px' : '100px'}">{{activeItem.k}}</div>
+                            <canvas ref="drawCanvas" @mousedown="startDraw" @mousemove="draw" @mouseup="stopDraw" @mouseout="stopDraw" @touchstart.prevent="startDraw" @touchmove.prevent="draw" @touchend.prevent="stopDraw"></canvas>
+                        </div>
+                        <div class="w-full bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+                            <i class="fa-solid fa-paint-brush text-slate-400"></i>
+                            <input type="range" min="2" max="25" v-model="brushSize" class="w-full accent-primary" @input="updateBrush">
+                        </div>
+                    </div>
+                    <div class="w-full md:w-1/2 p-8 sm:p-12 relative flex flex-col justify-center">
+                        <button @click="showModal = false" class="absolute top-6 right-6 w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:bg-slate-200"><i class="fa-solid fa-times text-2xl"></i></button>
+                        <div class="text-sm font-black text-primary uppercase tracking-widest mb-2">Traducción</div>
+                        <h3 class="text-5xl font-extrabold text-slate-900 dark:text-white mb-10 leading-tight">{{activeItem.es}}</h3>
+                        <div class="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 mb-8 flex justify-between items-center shadow-inner">
+                            <div>
+                                <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Romanización</div>
+                                <div class="text-3xl font-bold text-slate-700 dark:text-slate-300">{{activeItem.r}}</div>
+                            </div>
+                            <button @click="speak(activeItem.k)" class="w-20 h-20 rounded-full bg-white dark:bg-slate-800 border-4 border-primary text-primary text-3xl shadow-lg hover:bg-primary hover:text-white"><i class="fa-solid fa-volume-high"></i></button>
+                        </div>
+                        <div v-if="activeItem.breakdown" class="bg-indigo-50 dark:bg-indigo-900/30 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-800">
+                            <div class="text-xs font-bold text-primary dark:text-indigo-400 uppercase tracking-widest mb-3"><i class="fa-solid fa-layer-group mr-2"></i>Análisis Estructural</div>
+                            <div class="text-base font-medium text-indigo-900 dark:text-indigo-200 leading-relaxed">{{activeItem.breakdown}}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+    </div>
+    <script src="js/app.js"></script>
+</body>
+</html>

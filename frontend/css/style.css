@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; overflow-x: hidden; }
+        .dark body { background-color: #0f172a; color: #f8fafc; }
+        .kr-text { font-family: 'Pretendard', 'Malgun Gothic', sans-serif; }
+        
+        /* Glassmorphism sidebar */
+        .glass-sidebar { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px); border-right: 1px solid rgba(255, 255, 255, 0.3); }
+        .dark .glass-sidebar { background: rgba(30, 41, 59, 0.7); border-right: 1px solid rgba(255, 255, 255, 0.05); }
+
+        /* Canvas */
+        .canvas-wrapper { position: relative; width: 100%; height: 200px; border-radius: 1rem; overflow: hidden; background: #fff; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); background-image: linear-gradient(90deg, transparent 49%, #e2e8f0 49%, #e2e8f0 51%, transparent 51%), linear-gradient(0deg, transparent 49%, #e2e8f0 49%, #e2e8f0 51%, transparent 51%); background-size: 100px 100px; background-position: center; }
+        .dark .canvas-wrapper { background: #1e293b; background-image: linear-gradient(90deg, transparent 49%, #334155 49%, #334155 51%, transparent 51%), linear-gradient(0deg, transparent 49%, #334155 49%, #334155 51%, transparent 51%); }
+        .canvas-guide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 100px; font-weight: 900; color: #cbd5e1; opacity: 0.3; pointer-events: none; }
+        .dark .canvas-guide { color: #475569; }
+        canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+        
+        /* Transitions */
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        .slide-up-enter-active { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .slide-up-leave-active { transition: all 0.3s ease; }
+        .slide-up-enter-from { opacity: 0; transform: translateY(20px); }
+        .slide-up-leave-to { opacity: 0; transform: translateY(-20px); }
+
+        /* Flashcard Physics */
+        .perspective-1000 { perspective: 1500px; }
+        .preserve-3d { transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        
+        /* Swipe Card Change */
+        .card-change-enter-active, .card-change-leave-active { transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .card-change-leave-active { position: absolute; width: 100%; }
+        .card-change-enter-from { transform: translateX(100%) scale(0.9) rotate(5deg); opacity: 0; }
+        .card-change-leave-to { transform: translateX(-100%) scale(0.9) rotate(-5deg); opacity: 0; }
+
+        /* Theory Styles */
+        .theory-content h3 { font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem; color: #1e293b; }
+        .dark .theory-content h3 { color: #f8fafc; }
+        .theory-content p { margin-bottom: 1rem; line-height: 1.7; font-size: 1.1rem; color: #475569; }
+        .dark .theory-content p { color: #cbd5e1; }
+        .theory-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1.5rem; font-size: 1.1rem; color: #475569; }
+        .dark .theory-content ul { color: #cbd5e1; }
+        .theory-content li { margin-bottom: 0.5rem; }
+        .theory-content strong { color: #4f46e5; font-weight: 800; }
+        .dark .theory-content strong { color: #818cf8; }
+        .theory-content .example-box { background: #f8fafc; border-left: 4px solid #4f46e5; padding: 1rem; margin-bottom: 1.5rem; border-radius: 0 0.5rem 0.5rem 0; font-family: 'Pretendard', sans-serif; font-size: 1.2rem; font-weight: 600; color: #1e293b; }
+        .dark .theory-content .example-box { background: #1e293b; color: #f8fafc; border-left: 4px solid #818cf8; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

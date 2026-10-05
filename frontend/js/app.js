@@ -57,6 +57,7 @@ createApp({
 
         
         // Modal & Draw
+        const showSettings = ref(false);
         const showModal = ref(false);
         const activeItem = ref({});
         const drawCanvas = ref(null);
@@ -451,7 +452,7 @@ createApp({
 
         return {
             isAppLoading,
-            currentView, searchQuery, filterType, isDarkMode, toggleTheme, voiceSpeed, globalProgress, availableVoices, selectedVoiceURI,
+            currentView, searchQuery, filterType, isDarkMode, toggleTheme, voiceSpeed, globalProgress, availableVoices, selectedVoiceURI, showSettings,
             units, filteredLibrary, openUnit, getItemsForUnit,
             showModal, activeItem, openModal, drawCanvas, brushSize, startDraw, draw, stopDraw, clearCanvas, showStrokeGuide, updateBrush, speak, evaluateStroke, evaluateScore,
             activeUnit, studyMode, startMode, studyList, studyIndex, currentStudyItem,
